@@ -5,6 +5,7 @@ import os
 import redis
 import json
 from typing import List
+from feedback.store import store_feedback
 
 app = FastAPI(title="AutoRemedy API", description="REST API for the AutoRemedy agentic system.")
 
@@ -49,18 +50,18 @@ def get_history():
 
 @app.post("/feedback")
 def submit_feedback(feedback: FeedbackIn):
-    # Find the history record by event_id and update feedback
+    # Find the history record by event_id
     history = redis_client.lrange(HISTORY_LIST, 0, -1)
-    updated = False
-    for idx, item in enumerate(history):
+    found_event = None
+    for item in history:
         record = json.loads(item)
         if str(record['event'].get('job_id')) == str(feedback.event_id):
-            record['feedback'] = feedback.dict()
-            redis_client.lset(HISTORY_LIST, idx, json.dumps(record))
-            updated = True
+            found_event = record['event']
             break
-    if not updated:
+    if not found_event:
         raise HTTPException(status_code=404, detail="Event not found in history")
+    # Store feedback using the new feedback store
+    store_feedback(found_event, action="unknown", feedback=feedback.rating, comment=feedback.comment)
     return {"status": "feedback added"}
 
 @app.get("/status", response_model=StatusOut)

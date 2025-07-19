@@ -12,7 +12,7 @@ class Llama3Client:
         # Setup LLM log file
         os.makedirs('logs', exist_ok=True)
         self.llm_logger = logging.getLogger("llm_analysis")
-        handler = logging.FileHandler("logs/llm_analysis.log")
+        handler = logging.FileHandler("logs/llm_analysis.log", encoding="utf-8")
         handler.setFormatter(logging.Formatter('%(asctime)s | %(message)s'))
         if not self.llm_logger.handlers:
             self.llm_logger.addHandler(handler)

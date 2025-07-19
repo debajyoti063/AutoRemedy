@@ -1,77 +1,30 @@
-# AutoRemedy: Agentic AI for Autonomous IT Job Monitoring and Resolution
+# AutoRemedy: Agentic Microservice Platform
 
 ## Overview
-AutoRemedy is a modular, agentic AI system for autonomous monitoring, detection, and resolution of IT jobs. It leverages a local LLM (Meta Llama 3 via LM Studio) for log analysis, diagnosis, and remediation suggestions. The system is designed for extensibility, configurability, and easy integration with real-world job schedulers and enterprise tools.
+AutoRemedy is a modular, agentic system for automated event remediation, escalation, and feedback-driven learning. It is designed for microservice deployment (Docker, Kubernetes, OpenShift) and supports configuration-driven remediation, feedback loops, and extensibility. **Legacy script-based usage is also supported for quick prototyping or local runs.**
 
 ---
 
-## Table of Contents
-- [Features](#features)
-- [Architecture Summary](#architecture-summary)
-- [Code Understanding & Component Map](#code-understanding--component-map)
-- [Sequence Diagrams](#sequence-diagrams)
-- [Redis Usage & Logical Flow](#redis-usage--logical-flow)
-- [Setup & Installation](#setup--installation)
-- [How to Run: Script vs. Microservice](#how-to-run-script-vs-microservice)
-- [Extending the System](#extending-the-system)
-- [Troubleshooting & FAQ](#troubleshooting--faq)
-- [Contributing](#contributing)
-- [License](#license)
+## Architecture
+
+### Microservices
+- **API Service (`api/`)**: FastAPI REST API for event ingestion, feedback, and history. Stateless gateway.
+- **Agentic Worker (`agentic_worker/`)**: Processes events, applies reasoning (LLM/rules), triggers remediation/escalation/notification actions. All business logic lives here.
+- **Redis**: Message broker and shared state store.
+
+### Libraries/Plugins (Integrated in Services)
+- **agentic/**: Core agent, sensors, effectors, reasoning modules (imported by worker).
+- **remediation/**: Config-driven remediation engine and YAML rules (imported by worker).
+- **feedback/**: Feedback store/adapter (imported by API and worker).
+- **notifications/**: Notification effectors (imported by worker).
+- **resolution/**: Action logic (imported by worker).
+- **llm/**: LLM client (imported by reasoning module).
 
 ---
 
-## Features
-- **Agentic architecture** with pluggable Sensors, Effectors, and Reasoning Modules
-- **LLM-powered reasoning** for log analysis and action planning (Llama 3 via LM Studio)
-- **Feedback and learning loop** for continuous improvement
-- **Extensible plugin system** for new integrations (job sources, notifications, remediation)
-- **Structured logging and memory** for traceability and audit
-- **Supports both legacy script and modern microservice architectures**
+## Diagrams
 
----
-
-## Architecture Summary
-
-### Modern Microservice Architecture
-```
-+-------------------+         +---------------------+         +-------------------+
-|    FastAPI API    | <-----> |  Redis (Broker/DB)  | <-----> |   Agentic Worker  |
-| (event, status,   |         | (Queue, History)    |         | (core logic, LLM, |
-|  feedback, etc.)  |         |                     |         |  plugins, memory) |
-+-------------------+         +---------------------+         +-------------------+
-```
-
-### Legacy Script-Based Architecture
-```
-main.py
-  └─> agent/orchestrator.py
-        ├─> resolution/engine.py
-        ├─> notifications/notifier.py
-        ├─> jobsim/simulator.py
-        └─> llm/llama3_client.py
-```
-
----
-
-## Code Understanding & Component Map
-
-- **api/**: FastAPI REST API service (Dockerized)
-- **agentic_worker/**: Agentic worker service (Dockerized)
-- **agentic/**: Core agentic logic (sensors, effectors, reasoning modules, memory)
-- **notifications/**: Notification effectors (console, can be extended)
-- **llm/**: LLM client for LM Studio
-- **jobsim/**: Job simulation logic
-- **config.yaml**: Central configuration
-- **requirements.txt**: Python dependencies
-- **main.py**: Legacy monolithic entrypoint (not used in microservices)
-
----
-
-## Sequence Diagrams
-
-### Microservice Event Flow (Mermaid Syntax)
-> **Note:** The following is a Mermaid sequence diagram. If your Markdown renderer supports Mermaid, it will render as a diagram.
-
+### Microservice Event Flow
 ```mermaid
 sequenceDiagram
     participant User as User/API Client
@@ -83,8 +36,8 @@ sequenceDiagram
     User->>API: POST /event
     API->>Redis: rpush event (agentic:events)
     Worker->>Redis: lpop event (agentic:events)
-    Worker->>Core: process event
-    Core->>Worker: Reasoning, Effectors, Memory
+    Worker->>Core: process event (reasoning, remediation, feedback)
+    Core->>Worker: Actions (notify, remediate, escalate)
     Worker->>Redis: rpush history (agentic:history)
     User->>API: GET /history
     API->>Redis: lrange (agentic:history)
@@ -92,106 +45,178 @@ sequenceDiagram
 ```
 
 ### Legacy Script Flow
+```mermaid
+sequenceDiagram
+    participant User as User
+    participant Script as main.py
+    participant Core as Agentic Core (agentic/)
+    participant Redis as Redis (optional)
+
+    User->>Script: Run main.py
+    Script->>Core: Agent loop (sensors, reasoning, effectors)
+    Core->>Script: Actions (notify, remediate, escalate)
+    Script->>Redis: (optional) Store history/events
 ```
-main.py
-  └─> JobAgent (agent/orchestrator.py)
-        ├─> Simulate jobs (jobsim/simulator.py)
-        ├─> Detect issues, call resolution/engine.py
-        ├─> Use LLM (llm/llama3_client.py) for analysis
-        └─> Notify/escalate (notifications/notifier.py)
+
+---
+
+## Event Flow
+1. **Event Ingestion**: Events are POSTed to `/event` on the API service.
+2. **Queueing**: API pushes events to Redis (`agentic:events`).
+3. **Processing**: Agentic worker dequeues events, applies reasoning (LLM + config-driven remediation + feedback).
+4. **Action**: Worker triggers effectors (notification, remediation, escalation) as needed.
+5. **Feedback**: Users can POST feedback, which is stored and used to adapt future reasoning.
+
+---
+
+## Configuration-Driven Remediation
+- **Rules are defined in `remediation/remediation.yaml`**.
+- Each rule matches event patterns (type, status, source, description) and specifies a remediation action.
+- No code changes needed to add/update/removal remediation logic—just edit the YAML file.
+
+**Example rule:**
+```yaml
+- match:
+    event_type: "job_issue"
+    status: "fail"
+    source: "DiskMonitor"
+    description_contains: "Disk full"
+  action: "clear_temp_files"
 ```
 
 ---
 
-## Redis Usage & Logical Flow
-
-- **Event Queue (`agentic:events`)**: API pushes new job events here. Worker pops and processes them.
-- **History List (`agentic:history`)**: Worker appends processed event/action/outcome/feedback records here. API reads for `/history` endpoint.
-- **Decoupling**: Redis allows API and worker to scale independently and communicate asynchronously.
-
----
-
-## Setup & Installation
-
-1. **Install Python dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-2. **Start LM Studio:**
-   - Launch LM Studio and load the Llama 3 model
-   - Enable the OpenAI-compatible API (default: `http://localhost:1234/v1`)
-3. **Configure jobs and settings:**
-   - Edit `config.yaml` to define jobs, resolution steps, and LLM settings
+## Feedback Loop
+- Feedback is submitted via the API and stored in Redis.
+- The agentic worker retrieves feedback for similar events and adapts reasoning (e.g., prompt enrichment, rule adaptation).
+- Feedback is used to improve future remediation and escalation decisions.
 
 ---
 
-## How to Run: Script vs. Microservice
+## Escalation
+- Escalation is triggered if:
+  - The LLM suggests escalation,
+  - The event has `status: escalate` or `escalate: true`,
+  - Or as configured in rules.
+- Escalated events are logged to `logs/escalation.log` and highlighted in the console.
 
-### A. Legacy Script-Based Approach
-- **Run everything in one process (for quick prototyping or legacy use):**
+---
+
+## Redis Usage & Management
+
+### Queues and Data
+- **Event Queue (`agentic:events`)**: Stores incoming events as JSON strings (from API or script).
+- **History List (`agentic:history`)**: Stores processed event/action/outcome/feedback records as JSON.
+- **Feedback Keys**: Feedback is stored as lists with keys like `feedback:event:<event_hash>`.
+
+### Common Redis Commands
+- **Clear event queue:**
+  ```bash
+  redis-cli DEL agentic:events
+  ```
+- **Clear history:**
+  ```bash
+  redis-cli DEL agentic:history
+  ```
+- **Add event to queue:**
+  ```bash
+  redis-cli RPUSH agentic:events '{"job_id": 1, "status": "fail", "event_type": "job_issue", "details": {"timestamp": "...", "source": "...", "description": "..."}}'
+  ```
+- **View event queue:**
+  ```bash
+  redis-cli LRANGE agentic:events 0 -1
+  ```
+- **View history:**
+  ```bash
+  redis-cli LRANGE agentic:history 0 -1
+  ```
+- **Clear all feedback:**
+  ```bash
+  redis-cli KEYS 'feedback:event:*' | xargs redis-cli DEL
+  ```
+
+### Data Format
+- All data is stored as JSON-encoded strings.
+- Events, actions, and feedback are always dictionaries/lists (never dynamic classes).
+
+---
+
+## Extensibility
+- **Sensors**: Add new event sources by subclassing `Sensor` in `agentic/base.py`.
+- **Effectors**: Add new effectors (e.g., Slack, PagerDuty) by subclassing `Effector`.
+- **Reasoning Modules**: Swap or extend reasoning (LLM, rules) by subclassing `ReasoningModule`.
+- **Remediation**: Add new remediation actions by editing `remediation.yaml`.
+
+---
+
+## Deployment
+
+### Docker Compose Example
+```yaml
+version: '3.8'
+services:
+  redis:
+    image: redis:6
+    ports:
+      - "6379:6379"
+  api:
+    build: ./api
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+  worker:
+    build: ./agentic_worker
+    depends_on:
+      - redis
+```
+
+### Kubernetes/OpenShift
+- Deploy `api` and `agentic_worker` as separate Deployments.
+- Use a Redis Deployment/Service.
+- Add health/readiness probes as needed.
+
+---
+
+## Legacy Script-Based Usage
+- You can still run the legacy script for quick prototyping or local runs:
   ```bash
   python main.py
   ```
-- **Note:** This is not recommended for production or scalable deployments.
-
-### B. Modern Microservice (Dockerized) Approach
-
-#### 1. Start Redis (if not already running):
-```bash
-docker run -d -p 6379:6379 --name autoremedy-redis redis:7
-```
-
-#### 2. Build and Run the API Service
-```bash
-cd api
-# Build Docker image (optional for local dev)
-docker build -t autoremedy-api .
-# Or run locally
-uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-#### 3. Build and Run the Agentic Worker
-```bash
-cd agentic_worker
-# Build Docker image (optional for local dev)
-docker build -t autoremedy-worker .
-# Or run locally
-python -m agentic_worker.main
-```
-
-#### 4. Test the API
-- Open [http://localhost:8000/docs](http://localhost:8000/docs) for Swagger UI.
-- Submit events, check history, and provide feedback.
-
-#### 5. (Optional) Use Docker Compose
-- You can orchestrate all services with a `docker-compose.yml` for local or cloud-native development.
+- This will run the agentic loop in a single process, using the same core logic and configuration as the microservices.
+- Redis is optional in this mode, but can be used for history/queueing if desired.
 
 ---
 
-## Extending the System
-
-- **Add new sensors:** Subclass `Sensor` and implement `get_event()`
-- **Add new effectors:** Subclass `Effector` and implement `execute()`
-- **Add new reasoning modules:** Subclass `ReasoningModule` and implement `decide()`
-- **Integrate real job schedulers:** Implement job adapters as sensors
-- **Expand notifications:** Add new effectors for different channels
-- **Tune LLM prompts:** Update prompt templates in `config.yaml`
-- **Add persistent storage:** Store job state/history in a database for production use
+## Testing
+- Automated tests in `tests/` cover API, feedback, escalation, and config-driven remediation.
+- Run tests locally before deployment.
 
 ---
 
-## Troubleshooting & FAQ
-- **No LLM logs?** Ensure LM Studio is running and accessible at the configured endpoint
-- **No notifications?** Check effector registration and console output
-- **Want to add a new integration?** See the Extending section above
-- **Serialization errors?** Clear Redis queues and ensure all code is updated to use only JSON-serializable objects (dicts, not dynamic classes).
+## Directory Structure
+- `api/`: FastAPI microservice
+- `agentic_worker/`: Agentic worker microservice
+- `agentic/`: Core agent logic (imported)
+- `remediation/`: Remediation engine/config (imported)
+- `feedback/`: Feedback logic (imported)
+- `notifications/`: Notification effectors (imported)
+- `resolution/`: Action logic (imported)
+- `llm/`: LLM client (imported)
+- `tests/`: Automated tests
+- `logs/`: Log files
+- `docs/`: Documentation
 
 ---
 
-## Contributing
-- Contributions are welcome! Please open issues or pull requests for new features, bug fixes, or documentation improvements.
+## How to Add New Functionality
+- **New remediation rule**: Edit `remediation/remediation.yaml`.
+- **New effector**: Add a class in `notifications/` and register in the worker.
+- **New sensor**: Add a class in `agentic/` and register in the worker.
+- **New feedback logic**: Extend `feedback/` and import as needed.
 
 ---
 
-## License
-MIT (or your preferred license) 
+## Contact & Contribution
+- See `docs/ARCHITECTURE.md` for detailed diagrams and sequence flows.
+- Contributions welcome! Fork, branch, and submit PRs. 

@@ -1,0 +1,19 @@
+remediation_rules:
+  - match:
+      event_type: "job_issue"
+      status: "fail"
+      source: "TestSource"
+      description_contains: "Service crashed"
+    action: "restart_service"
+  - match:
+      event_type: "job_issue"
+      status: "fail"
+      source: "DiskMonitor"
+      description_contains: "Disk full"
+    action: "clear_temp_files"
+  - match:
+      event_type: "job_issue"
+      status: "fail"
+      source: "Updater"
+      description_contains: "update failed"
+    action: "retry_update" 
