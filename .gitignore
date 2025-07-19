@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.pkl
+*.egg-info/
+
+# Environment
+.env
+.env.*
+
+# VSCode
+.vscode/
+
+# Logs
+logs/
+*.log
+
+# Docker
+*.db
+*.sqlite3
+*.pid
+*.sock
+.DS_Store
+*.swp
+
+# Test/coverage
+.coverage
+htmlcov/
+.tox/
+.pytest_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# System
+Thumbs.db
+Desktop.ini
+
+# Build
+build/
+dist/
+*.egg
+.eggs/
+
+# Redis dump
+*.rdb
+
+# Ignore local config
+config.local.yaml 

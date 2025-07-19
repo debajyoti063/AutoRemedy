@@ -1,0 +1,65 @@
+jobs:
+  - id: job1
+    expected_duration: 10
+    type: etl
+  - id: job2
+    expected_duration: 15
+    type: batch
+  - id: job3
+    expected_duration: 8
+    type: data_import
+  - id: job4
+    expected_duration: 12
+    type: reporting
+  - id: job5
+    expected_duration: 20
+    type: cleanup
+  - id: job6
+    expected_duration: 18
+    type: export
+  - id: job7
+    expected_duration: 14
+    type: aggregation
+  - id: job8
+    expected_duration: 9
+    type: notification
+  - id: job9
+    expected_duration: 11
+    type: backup
+  - id: job10
+    expected_duration: 16
+    type: sync
+  - id: job11
+    expected_duration: 13
+    type: validation
+  - id: job12
+    expected_duration: 17
+    type: transformation
+  - id: job13
+    expected_duration: 7
+    type: enrichment
+  - id: job14
+    expected_duration: 19
+    type: archiving
+  - id: job15
+    expected_duration: 10
+    type: alerting
+
+resolution:
+  failed:
+    - retry
+    - clear_temp_files
+    - escalate
+  stuck:
+    - restart_service
+    - clear_queue
+    - escalate
+
+notifications:
+  channels: [console]
+  escalation_threshold: 2
+
+llm:
+  endpoint: "http://localhost:1234/v1"
+  model: "llama-3"
+  log_analysis_prompt: "Analyze this log and suggest resolution steps:" 
