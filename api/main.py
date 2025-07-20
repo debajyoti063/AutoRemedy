@@ -6,14 +6,28 @@ import redis
 import json
 from typing import List
 from feedback.store import store_feedback
+import logging
+from utils.config_loader import load_config, get_redis_config
 
 app = FastAPI(title="AutoRemedy API", description="REST API for the AutoRemedy agentic system.")
 
+# Set up logging
+logger = logging.getLogger("api")
+handler = logging.FileHandler("logs/api.log", encoding="utf-8")
+formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+handler.setFormatter(formatter)
+if not logger.hasHandlers():
+    logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+
 # Redis connection (configurable via env)
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
-REDIS_DB = int(os.getenv("REDIS_DB", 0))
+config = load_config()
+REDIS_HOST, REDIS_PORT, REDIS_DB = get_redis_config(config)
+logger.info(f"[DEBUG] API Redis config: REDIS_HOST={REDIS_HOST}, REDIS_PORT={REDIS_PORT}, REDIS_DB={REDIS_DB}")
+print(f"[DEBUG] API Redis config: REDIS_HOST={REDIS_HOST}, REDIS_PORT={REDIS_PORT}, REDIS_DB={REDIS_DB}")
 redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, decode_responses=True)
+logger.info(f"[DEBUG] API Redis client connection kwargs: {redis_client.connection_pool.connection_kwargs}")
+print(f"[DEBUG] API Redis client connection kwargs: {redis_client.connection_pool.connection_kwargs}")
 
 EVENT_QUEUE = "agentic:events"
 HISTORY_LIST = "agentic:history"
@@ -32,6 +46,8 @@ def health():
 
 @app.post("/event")
 def submit_event(event: EventIn):
+    logger.info(f"[DEBUG] Submitting event: {event.dict()} to Redis host={REDIS_HOST}, port={REDIS_PORT}")
+    print(f"[DEBUG] Submitting event: {event.dict()} to Redis host={REDIS_HOST}, port={REDIS_PORT}")
     # Push event to Redis queue
     redis_client.rpush(EVENT_QUEUE, event.json())
     return {"status": "submitted"}

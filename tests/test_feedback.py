@@ -38,3 +38,56 @@ def test_no_feedback():
     prompt = "Analyze this log."
     enriched = enrich_prompt_with_feedback(prompt, feedbacks)
     assert enriched == prompt 
+
+def test_multi_agent_feedback():
+    from agentic.agent import Agent, MultiAgentOrchestrator
+    from agentic.memory import Memory
+    from agentic.sensor_sim import SimulatedSensor
+    from agentic.reasoning_simple import SimpleReasoningModule
+    # Agent 1
+    sensor1 = SimulatedSensor()
+    memory1 = Memory()
+    agent1_cfg = {
+        'sensors': [sensor1],
+        'effectors': [],
+        'reasoning_module': SimpleReasoningModule(),
+        'memory': memory1
+    }
+    # Agent 2
+    sensor2 = SimulatedSensor()
+    memory2 = Memory()
+    agent2_cfg = {
+        'sensors': [sensor2],
+        'effectors': [],
+        'reasoning_module': SimpleReasoningModule(),
+        'memory': memory2
+    }
+    orchestrator = MultiAgentOrchestrator([agent1_cfg, agent2_cfg])
+    # Ensure each agent processes at least one event
+    max_attempts = 10
+    for _ in range(max_attempts):
+        orchestrator.run_once()
+        if orchestrator.agents[0].memory.history and orchestrator.agents[1].memory.history:
+            break
+    assert orchestrator.agents[0].memory.history, "Agent 1 did not process any event."
+    assert orchestrator.agents[1].memory.history, "Agent 2 did not process any event."
+    # Add feedback to agent 1
+    orchestrator.agents[0].feedback({'user': 'test', 'rating': 4, 'comment': 'Agent 1 feedback'})
+    # Add feedback to agent 2
+    orchestrator.agents[1].feedback({'user': 'test', 'rating': 5, 'comment': 'Agent 2 feedback'})
+    # Assert feedback is stored independently
+    assert orchestrator.agents[0].memory.history[-1]['feedback']['comment'] == 'Agent 1 feedback'
+    assert orchestrator.agents[1].memory.history[-1]['feedback']['comment'] == 'Agent 2 feedback' 
+
+def test_self_reflection_module():
+    from agentic.self_reflection import SelfReflectionModule
+    # Simulate memory with repeated failures and ineffective feedback
+    memory = [
+        {'event': {'status': 'fail'}, 'feedback': {'rating': 2}},
+        {'event': {'status': 'fail'}, 'feedback': {'rating': 5}},
+        {'event': {'status': 'fail'}, 'feedback': {'rating': 1}},
+    ]
+    reflection = SelfReflectionModule(min_failures_for_escalation=2)
+    suggestions = reflection.reflect(memory)
+    assert suggestions['escalate'] is True
+    assert suggestions['review_strategy'] is True 

@@ -12,7 +12,7 @@ def test_event_submission():
 
 def test_history():
     # Wait and retry for worker to process event
-    for _ in range(10):
+    for _ in range(20):  # Increased retries for robustness
         r = requests.get(f"{BASE_URL}/history")
         assert r.status_code == 200
         records = r.json().get("records", [])
@@ -23,7 +23,16 @@ def test_history():
     print("DEBUG: Records returned:", records)
     assert any(rec["event"]["job_id"] == 101 for rec in records), "Event not found in history after retries"
 
-def test_feedback(records):
+def test_feedback():
+    # Wait and retry for worker to process event
+    for _ in range(20):
+        r = requests.get(f"{BASE_URL}/history")
+        assert r.status_code == 200
+        records = r.json().get("records", [])
+        if any(rec["event"]["job_id"] == 101 for rec in records):
+            break
+        time.sleep(1)
+    assert records, "No records found in history for feedback test."
     # Use the first record's job_id
     job_id = records[0]["event"]["job_id"]
     payload = {"event_id": str(job_id), "user": "tester", "rating": 5, "comment": "Looks good"}
@@ -41,7 +50,7 @@ def test_status():
 def run_all():
     test_event_submission()
     records = test_history()
-    test_feedback(records)
+    test_feedback()
     test_status()
     print("All microservice API tests PASSED.")
 

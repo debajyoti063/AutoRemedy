@@ -1,7 +1,9 @@
 import csv
 import requests
+import os
+import json
 
-API_URL = "http://localhost:8000/event"
+API_URL = os.getenv("API_URL", "http://localhost:8000/event")
 CSV_FILE = "C:/Users/91913/Downloads/archive/eventos.csv"
 
 with open(CSV_FILE, encoding="utf-8") as f:

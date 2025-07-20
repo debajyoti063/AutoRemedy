@@ -141,3 +141,78 @@ AutoRemedy/
 ## 8. Further Reading
 - See `docs/README.md` for setup, usage, and extension instructions
 - Review `logs/llm_analysis.log` for LLM-powered analysis history 
+
+---
+
+## 9. Multi-Agent Orchestration (New)
+
+- **MultiAgentOrchestrator (`agentic/agent.py`)**: Manages multiple Agent instances, each with their own sensors, effectors, and reasoning modules.
+- **Configuration**: Agents can be defined via config or code, each with independent memory and feedback.
+- **Demo**: See `agentic/demo_run.py` for an example of running two agents in parallel.
+- **Benefits**:
+  - Enables parallel or specialized processing (e.g., one agent for logs, another for metrics)
+  - Foundation for advanced autonomy (self-reflection, planning, collaboration)
+  - Paves the way for Model Context Protocol (MCP) integration and plug-and-play agent/tool ecosystems
+
+**Example Multi-Agent Flow:**
+```
+MultiAgentOrchestrator
+  ├── Agent 1 (Sensor(s), Effector(s), Reasoning)
+  └── Agent 2 (Sensor(s), Effector(s), Reasoning)
+      ...
+Each agent processes events independently, stores its own history, and can adapt based on feedback.
+```
+
+--- 
+
+## 10. Self-Reflection & Planning Module (New)
+
+- **SelfReflectionModule (`agentic/self_reflection.py`)**: Allows agents to analyze their own memory/history after each run.
+- **Purpose**: Detect patterns such as repeated failures or ineffective remediations, and suggest strategy adjustments (e.g., escalate sooner, review remediation approach).
+- **Integration**: Pass an instance of SelfReflectionModule to the Agent. After each event or batch, the agent calls `self_reflection.reflect(memory)` and updates its context with the suggestions.
+- **Benefits**:
+  - Enables agents to adapt and improve autonomously based on outcomes
+  - Lays the foundation for multi-step planning and dynamic goal adjustment
+  - Key step toward advanced autonomy and MCP-enabled collaboration
+
+**Example:**
+```
+reflection = SelfReflectionModule(min_failures_for_escalation=2)
+agent = Agent(..., self_reflection=reflection)
+```
+
+--- 
+
+## 11. Model Context Protocol (MCP) Integration (New)
+
+- **MCP Server (`mcp_server/mcp_adapter.py`)**: Exposes agentic tools (remediate, escalate, analyze_log) as MCP-compliant endpoints using JSON-RPC over HTTP.
+- **Dynamic Tool Registry**: Tool schemas are loaded from `mcp_server/tool_schemas.yaml` for easy reconfiguration and extension.
+- **Plug-and-Play**: Enables external LLMs, agents, or orchestrators to discover and invoke agentic actions in a standardized way.
+- **Wiring**: MCP endpoints are directly connected to real agentic logic (remediation, escalation, LLM analysis).
+- **Benefits**:
+  - Standardizes tool/resource access for LLMs and agents
+  - Enables cross-agent and cross-tool collaboration
+  - Foundation for future multi-agent, multi-tool ecosystems
+
+**MCP Sequence Diagram:**
+```mermaid
+sequenceDiagram
+    participant Client as MCP Client/LLM
+    participant MCP as MCP Server (mcp_server/)
+    participant Agentic as Agentic Logic (remediation, escalation, LLM)
+    Client->>MCP: JSON-RPC call (e.g., remediate_issue)
+    MCP->>Agentic: Call real agentic logic
+    Agentic->>MCP: Return result
+    MCP->>Client: JSON-RPC response
+```
+
+**How to Run MCP Server:**
+```bash
+uvicorn mcp_server.mcp_adapter:app --reload --port 9000
+```
+
+**How to Test MCP Endpoints:**
+- Use curl, Postman, or PowerShell to POST JSON-RPC requests to `http://localhost:9000/mcp`.
+- See `mcp_server/tool_schemas.yaml` for available tools and schemas.
+
+--- 

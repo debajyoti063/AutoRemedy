@@ -220,3 +220,66 @@ services:
 ## Contact & Contribution
 - See `docs/ARCHITECTURE.md` for detailed diagrams and sequence flows.
 - Contributions welcome! Fork, branch, and submit PRs. 
+
+---
+
+## Multi-Agent Orchestration (New)
+
+- **MultiAgentOrchestrator**: Run multiple agents in parallel, each with their own sensors, effectors, and reasoning modules.
+- **Configuration**: Define agents in code or config, each with independent memory and feedback.
+- **Demo**: See `agentic/demo_run.py` for a working example.
+- **Benefits**:
+  - Parallel/specialized event processing
+  - Foundation for advanced autonomy and MCP integration
+
+**How to Run Multi-Agent Demo:**
+```bash
+python agentic/demo_run.py
+```
+This will run two agents in parallel, each processing events and storing their own history/feedback.
+
+--- 
+
+## Self-Reflection & Planning Module (New)
+
+- **SelfReflectionModule**: Lets agents analyze their own memory/history after each run.
+- **Usage**: Pass an instance to the Agent. After each event or batch, the agent calls `self_reflection.reflect(memory)` and updates its context.
+- **Benefits**:
+  - Detects repeated failures or ineffective remediations
+  - Suggests escalation or strategy review automatically
+  - Enables agents to adapt and improve autonomously
+
+**How to Use:**
+```python
+from agentic.self_reflection import SelfReflectionModule
+reflection = SelfReflectionModule(min_failures_for_escalation=2)
+agent = Agent(..., self_reflection=reflection)
+```
+
+--- 
+
+## Model Context Protocol (MCP) Integration (New)
+
+- **MCP Server**: Exposes agentic actions (remediate, escalate, analyze_log) as JSON-RPC endpoints for LLMs and external agents.
+- **Dynamic Tool Registry**: Tool schemas are loaded from `mcp_server/tool_schemas.yaml`.
+- **Plug-and-Play**: Enables standardized, discoverable tool access for LLMs and agentic orchestrators.
+
+**How to Run:**
+```bash
+uvicorn mcp_server.mcp_adapter:app --reload --port 9000
+```
+
+**How to Test:**
+- Use curl, Postman, or PowerShell to POST JSON-RPC requests to `http://localhost:9000/mcp`.
+- Example (PowerShell):
+  ```powershell
+  Invoke-WebRequest -Uri http://localhost:9000/mcp -Method POST -Headers @{"Content-Type"="application/json"} -Body '{"jsonrpc":"2.0","method":"remediate_issue","params":{"job_id":"job42","status":"fail","details":{"error":"disk full"}},"id":2}'
+  ```
+- See `mcp_server/tool_schemas.yaml` for available tools and schemas.
+
+**Benefits:**
+- Standardizes tool/resource access for LLMs and agents
+- Enables cross-agent and cross-tool collaboration
+- Foundation for future multi-agent, multi-tool ecosystems
+
+--- 

@@ -33,4 +33,13 @@ class NotifierEffector(Effector):
             console.print(f"[green]Remediation action: {remediation} for job {job['job_id']} (status: {job['status']})[/green]")
             print(f"[DEBUG] Remediation action triggered: {remediation} for job {job['job_id']}")
         else:
-            console.print(f"[red]Unknown action: {action}[/red]") 
+            console.print(f"[red]Unknown action: {action}[/red]")
+
+def notify(job, config, escalation=False):
+    eff = NotifierEffector()
+    # Support both dict and SimulatedJob
+    if hasattr(job, 'job_id') and hasattr(job, 'status'):
+        job_dict = {'job_id': job.job_id, 'status': job.status}
+    else:
+        job_dict = job
+    eff.execute('notify', {'job': job_dict, 'escalation': escalation}) 

@@ -1,0 +1,56 @@
+remediate_issue:
+  description: "Attempt remediation for a given job event."
+  input_schema:
+    type: object
+    properties:
+      job_id:
+        type: string
+      status:
+        type: string
+      details:
+        type: object
+    required: [job_id, status]
+  output_schema:
+    type: object
+    properties:
+      result:
+        type: string
+      success:
+        type: boolean
+    required: [result, success]
+
+escalate_issue:
+  description: "Escalate a job event for human intervention."
+  input_schema:
+    type: object
+    properties:
+      job_id:
+        type: string
+      reason:
+        type: string
+    required: [job_id, reason]
+  output_schema:
+    type: object
+    properties:
+      escalated:
+        type: boolean
+      message:
+        type: string
+    required: [escalated, message]
+
+analyze_log:
+  description: "Analyze a log and suggest actions."
+  input_schema:
+    type: object
+    properties:
+      log_text:
+        type: string
+      job_id:
+        type: string
+    required: [log_text, job_id]
+  output_schema:
+    type: object
+    properties:
+      suggestion:
+        type: string
+    required: [suggestion] 

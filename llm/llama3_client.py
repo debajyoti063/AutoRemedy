@@ -1,12 +1,14 @@
 import openai
 import os
 import logging
+from utils.config_loader import get_llm_config
 
 class Llama3Client:
     def __init__(self, config):
-        self.api_base = config['llm']['endpoint']
-        self.model = config['llm']['model']
-        self.prompt_template = config['llm']['log_analysis_prompt']
+        endpoint, model, prompt = get_llm_config(config)
+        self.api_base = endpoint
+        self.model = model
+        self.prompt_template = prompt
         openai.api_key = "lm-studio"  # Dummy key for LM Studio
         openai.api_base = self.api_base
         # Setup LLM log file

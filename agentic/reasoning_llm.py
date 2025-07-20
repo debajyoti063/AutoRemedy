@@ -1,15 +1,15 @@
 from agentic.base import ReasoningModule
 from typing import Dict, Any, List
 from llm.llama3_client import Llama3Client
-import yaml
+import os
+from utils.config_loader import load_config
 from feedback.store import get_feedback
 from feedback.adapter import enrich_prompt_with_feedback
 from remediation.engine import load_remediation_rules, find_remediation_action
 
 class LLMReasoningModule(ReasoningModule):
-    def __init__(self, config_path='config.yaml'):
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
+    def __init__(self, config_path=None):
+        config = load_config() if config_path is None else load_config(config_path)
         self.llm_client = Llama3Client(config)
         self.remediation_rules = load_remediation_rules()
 

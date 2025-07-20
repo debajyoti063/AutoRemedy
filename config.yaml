@@ -60,6 +60,10 @@ notifications:
   escalation_threshold: 2
 
 llm:
-  endpoint: "http://localhost:1234/v1"
+  endpoint: "http://host.docker.internal:1234/v1"
   model: "llama-3"
   log_analysis_prompt: "Analyze this log and suggest resolution steps:" 
+redis:
+  host: localhost
+  port: 6379
+  db: 0 
